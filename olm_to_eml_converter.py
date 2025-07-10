@@ -124,13 +124,29 @@ class OLMToEMLConverter:
         message_id = ""
         
         # Parse Outlook-specific XML elements
+        sender_addresses = []
+        recipient_addresses = []
+        
         for elem in root.iter():
             if elem.tag == 'OPFMessageCopySubject':
                 subject = elem.text or ""
             elif elem.tag == 'OPFMessageCopyDisplayTo':
-                recipient = elem.text or ""
+                # This gives us the display name, but we'll get email from addresses
+                pass
             elif elem.tag == 'OPFMessageCopyFromAddresses':
-                sender = elem.text or ""
+                # Extract email addresses from nested emailAddress elements
+                for email_elem in elem.iter('emailAddress'):
+                    email_addr = email_elem.get('OPFContactEmailAddressAddress', '')
+                    email_name = email_elem.get('OPFContactEmailAddressName', '')
+                    if email_addr:
+                        sender_addresses.append((email_name, email_addr))
+            elif elem.tag == 'OPFMessageCopyToAddresses':
+                # Extract recipient email addresses
+                for email_elem in elem.iter('emailAddress'):
+                    email_addr = email_elem.get('OPFContactEmailAddressAddress', '')
+                    email_name = email_elem.get('OPFContactEmailAddressName', '')
+                    if email_addr:
+                        recipient_addresses.append((email_name, email_addr))
             elif elem.tag == 'OPFMessageCopySentTime':
                 date = elem.text or ""
             elif elem.tag == 'OPFMessageCopyBody':
@@ -144,12 +160,14 @@ class OLMToEMLConverter:
             elif elem.tag == 'OPFMessageCopyMessageID':
                 message_id = elem.text or ""
         
-        # If we didn't get sender from FromAddresses, try other sources
-        if not sender:
-            for elem in root.iter():
-                if elem.tag == 'OPFMessageCopySenderAddress':
-                    sender = elem.text or ""
-                    break
+        # Format sender and recipient from extracted addresses
+        if sender_addresses:
+            name, addr = sender_addresses[0]  # Take first sender
+            sender = f"{name} <{addr}>" if name else addr
+        
+        if recipient_addresses:
+            name, addr = recipient_addresses[0]  # Take first recipient
+            recipient = f"{name} <{addr}>" if name else addr
         
         # Clean up the body content - convert HTML to plain text if needed
         if body and body.startswith('<'):
