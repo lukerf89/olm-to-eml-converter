@@ -34,20 +34,22 @@ class EMLToCSVConverter:
         # Create CSV with headers
         with open(self.csv_output_path, 'w', newline='', encoding='utf-8') as csvfile:
             fieldnames = [
-                'filename',
                 'subject',
+                'subject_prefix',
                 'from_name',
                 'from_email',
                 'to_name',
                 'to_email',
-                'date',
                 'date_parsed',
                 'body_text',
-                'body_html',
+                'summary_input',
+                'tags',
                 'attachments',
+                'thread_id',
                 'message_id',
                 'in_reply_to',
-                'references'
+                'references',
+                'filename'
             ]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
@@ -77,7 +79,8 @@ class EMLToCSVConverter:
             return None
         
         # Extract basic fields
-        subject = self._clean_text(msg.get('Subject', ''))
+        subject_raw = self._clean_text(msg.get('Subject', ''))
+        subject, subject_prefix = self._parse_subject_prefix(subject_raw)
         from_field = msg.get('From', '')
         to_field = msg.get('To', '')
         date_field = msg.get('Date', '')
@@ -100,21 +103,29 @@ class EMLToCSVConverter:
         # Get attachments info
         attachments = self._get_attachments_info(msg)
         
+        # Generate thread ID
+        thread_id = self._generate_thread_id(message_id, in_reply_to, references)
+        
+        # Create combined summary input
+        summary_input = self._create_summary_input(from_name, from_email, to_name, to_email, date_parsed, subject, body_text)
+        
         return {
-            'filename': eml_file.name,
             'subject': subject,
+            'subject_prefix': subject_prefix,
             'from_name': from_name,
             'from_email': from_email,
             'to_name': to_name,
             'to_email': to_email,
-            'date': date_field,
             'date_parsed': date_parsed,
-            'body_text': self._clean_text(body_text),
-            'body_html': self._clean_text(body_html),
+            'body_text': self._clean_text_with_truncation(body_text),
+            'summary_input': summary_input,
+            'tags': '',  # Empty for manual/AI tagging
             'attachments': attachments,
+            'thread_id': thread_id,
             'message_id': message_id,
             'in_reply_to': in_reply_to,
-            'references': references
+            'references': references,
+            'filename': eml_file.name
         }
     
     def _parse_email_address(self, email_field):
@@ -210,11 +221,78 @@ class EMLToCSVConverter:
         text = re.sub(r'\s+', ' ', text)
         text = text.strip()
         
+        return text
+    
+    def _clean_text_with_truncation(self, text):
+        """Clean text and truncate with indicator"""
+        if not text:
+            return ''
+        
+        # Remove excessive whitespace and newlines
+        text = re.sub(r'\s+', ' ', text)
+        text = text.strip()
+        
         # Limit length for CSV readability
         if len(text) > 5000:
-            text = text[:5000] + '...'
+            text = text[:5000] + '... [truncated]'
         
         return text
+    
+    def _parse_subject_prefix(self, subject):
+        """Parse subject prefix (RE, FWD, etc.) from subject line"""
+        if not subject:
+            return '', ''
+        
+        # Common prefixes
+        prefix_pattern = r'^(RE|FW|FWD|REPLY|FORWARD)\s*:\s*'
+        match = re.match(prefix_pattern, subject, re.IGNORECASE)
+        
+        if match:
+            prefix = match.group(1).upper()
+            clean_subject = subject[match.end():].strip()
+            return clean_subject, prefix
+        
+        return subject, ''
+    
+    def _generate_thread_id(self, message_id, in_reply_to, references):
+        """Generate thread ID for grouping related messages"""
+        # Use the first message ID in the thread
+        if references:
+            # Take the first reference as the thread root
+            first_ref = references.split()[0].strip('<>')
+            return first_ref
+        elif in_reply_to:
+            # Use the message this replies to
+            return in_reply_to.strip('<>')
+        elif message_id:
+            # This is likely the start of a thread
+            return message_id.strip('<>')
+        
+        return ''
+    
+    def _create_summary_input(self, from_name, from_email, to_name, to_email, date_parsed, subject, body_text):
+        """Create combined summary input for Notion AI"""
+        # Format sender info
+        from_info = f"{from_name} <{from_email}>" if from_name else from_email
+        to_info = f"{to_name} <{to_email}>" if to_name else to_email
+        
+        # Create combined block
+        summary_parts = [
+            f"From: {from_info}",
+            f"To: {to_info}",
+            f"Date: {date_parsed}",
+            f"Subject: {subject}",
+            "",
+            body_text[:3000]  # Limit body in summary to 3000 chars
+        ]
+        
+        summary = "\n".join(summary_parts)
+        
+        # Add truncation indicator if body was cut
+        if len(body_text) > 3000:
+            summary += "\n\n... [body truncated]"
+        
+        return summary
 
 def main():
     """Main function for command line usage"""

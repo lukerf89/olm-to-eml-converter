@@ -113,32 +113,66 @@ class OLMToEMLConverter:
             print(f"Error converting {message_path}: {e}")
     
     def _extract_email_from_xml(self, root):
-        """Extract email content from XML structure"""
-        # This is a simplified extraction - actual OLM structure may vary
+        """Extract email content from Outlook XML structure"""
+        import html
+        
         subject = ""
         sender = ""
         recipient = ""
         date = ""
         body = ""
+        message_id = ""
         
-        # Try to find email elements in the XML
+        # Parse Outlook-specific XML elements
         for elem in root.iter():
-            if elem.tag.lower() in ['subject', 'title']:
+            if elem.tag == 'OPFMessageCopySubject':
                 subject = elem.text or ""
-            elif elem.tag.lower() in ['from', 'sender']:
-                sender = elem.text or ""
-            elif elem.tag.lower() in ['to', 'recipient']:
+            elif elem.tag == 'OPFMessageCopyDisplayTo':
                 recipient = elem.text or ""
-            elif elem.tag.lower() in ['date', 'sent']:
+            elif elem.tag == 'OPFMessageCopyFromAddresses':
+                sender = elem.text or ""
+            elif elem.tag == 'OPFMessageCopySentTime':
                 date = elem.text or ""
-            elif elem.tag.lower() in ['body', 'content']:
-                body = elem.text or ""
+            elif elem.tag == 'OPFMessageCopyBody':
+                # This contains HTML-encoded content
+                if elem.text:
+                    body = html.unescape(elem.text)
+            elif elem.tag == 'OPFMessageCopyHTMLBody':
+                # Alternative HTML body location
+                if elem.text and not body:
+                    body = html.unescape(elem.text)
+            elif elem.tag == 'OPFMessageCopyMessageID':
+                message_id = elem.text or ""
         
-        # Create EML format
+        # If we didn't get sender from FromAddresses, try other sources
+        if not sender:
+            for elem in root.iter():
+                if elem.tag == 'OPFMessageCopySenderAddress':
+                    sender = elem.text or ""
+                    break
+        
+        # Clean up the body content - convert HTML to plain text if needed
+        if body and body.startswith('<'):
+            # Simple HTML to text conversion
+            body = re.sub(r'<[^>]+>', '', body)
+            body = html.unescape(body)
+            body = re.sub(r'\s+', ' ', body).strip()
+        
+        # Format date if it's in ISO format
+        if date and 'T' in date:
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(date.replace('Z', '+00:00'))
+                date = dt.strftime('%a, %d %b %Y %H:%M:%S %z')
+            except:
+                pass
+        
+        # Create EML format with proper headers
         eml_content = f"""From: {sender}
 To: {recipient}
 Subject: {subject}
 Date: {date}
+Message-ID: {message_id}
 
 {body}
 """
