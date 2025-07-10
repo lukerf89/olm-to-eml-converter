@@ -3,19 +3,21 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is a two-part email processing utility: converts Outlook for Mac archive files (.olm) to individual email files (.eml), then converts those to CSV database format for AI analysis.
+This is a three-part email processing utility: converts Outlook for Mac archive files (.olm) to individual email files (.eml), then converts those to CSV database format, and finally chunks the CSV into monthly files for easier AI analysis.
 
 ## Commands
 - **Convert OLM to EML**: `python olm_to_eml_converter.py path/to/file.olm output_directory`
 - **Convert EML to CSV**: `python eml_to_csv_converter.py eml_directory output.csv`
+- **Chunk CSV by month**: `python csv_chunker.py input.csv output_directory [--prefix emails]`
 - **Full workflow example**: 
   ```bash
   python olm_to_eml_converter.py "~/Documents/EmailArchive.olm" ./converted_emails
   python eml_to_csv_converter.py ./converted_emails ./emails_database.csv
+  python csv_chunker.py ./emails_database.csv ./monthly_emails
   ```
 
 ## Architecture
-Two complementary Python scripts with no external dependencies:
+Three complementary Python scripts with no external dependencies:
 
 ### OLM to EML Converter
 - **OLMToEMLConverter class**: Treats OLM files as ZIP archives
@@ -31,11 +33,18 @@ Two complementary Python scripts with no external dependencies:
 - **Advanced features**: Subject prefix parsing, thread ID generation, truncation indicators
 - **Robust parsing**: Handles both multipart and single-part messages
 
+### CSV Chunker
+- **EmailCSVChunker class**: Splits large CSV files into monthly chunks
+- **Date-based grouping**: Organizes emails by year and month from date_parsed field
+- **Flexible naming**: Configurable filename prefix (default: emails_YYYY_MM.csv)
+- **Import-friendly**: Creates manageable file sizes for Notion AI processing
+- **Summary reporting**: Shows email counts per month and files created
+
 ## Key Technical Details
-- **Input**: .olm files (Outlook for Mac archives) → .eml files → .csv database
+- **Input**: .olm files (Outlook for Mac archives) → .eml files → .csv database → monthly .csv files
 - **Python version**: 3.6+
 - **Dependencies**: None (standard library only)
-- **Libraries used**: zipfile, xml.etree.ElementTree, email, pathlib, csv
+- **Libraries used**: zipfile, xml.etree.ElementTree, email, pathlib, csv, datetime, collections
 
 ## Core Methods
 
@@ -53,6 +62,12 @@ Two complementary Python scripts with no external dependencies:
 - `_generate_thread_id()` - Creates thread grouping from message references
 - `_create_summary_input()` - Builds combined metadata block for AI analysis
 - `_extract_body()` - Handles both text and HTML body content
+
+### CSV Chunker
+- `chunk_by_month()` - Main chunking orchestrator
+- `_extract_year_month()` - Parses various date formats to extract YYYY_MM
+- `_write_monthly_csv()` - Creates individual CSV files for each month
+- `_print_summary()` - Displays breakdown of emails per month
 
 ## CSV Output Structure (16 columns)
 1. **subject** - Clean subject without prefixes
