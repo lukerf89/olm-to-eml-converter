@@ -72,3 +72,10 @@ Two complementary Python scripts with no external dependencies:
 - OLM format is proprietary and complex
 - Large files may require significant processing time
 - Character encoding issues with special characters
+
+## Production Notes
+- CSV converter automatically excludes Mac resource fork files (._filename.eml)
+- Email addresses are extracted from XML attributes, not text content
+- HTML body content is converted to plain text with basic cleaning
+- Thread IDs use message references to group conversation chains
+- All output is UTF-8 encoded for maximum compatibility

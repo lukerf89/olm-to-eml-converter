@@ -23,8 +23,9 @@ class EMLToCSVConverter:
         """Convert all EML files in directory to CSV"""
         print(f"Converting EML files from {self.eml_directory} to CSV...")
         
-        # Get all EML files
-        eml_files = list(self.eml_directory.glob("*.eml"))
+        # Get all EML files, excluding Mac resource forks
+        all_eml_files = list(self.eml_directory.glob("*.eml"))
+        eml_files = [f for f in all_eml_files if not f.name.startswith('._')]
         if not eml_files:
             print("No EML files found in directory")
             return
