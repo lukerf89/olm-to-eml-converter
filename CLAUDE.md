@@ -1,69 +1,38 @@
-# Project Context for Claude
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 This is an OLM to EML converter - a Python utility that converts Outlook for Mac archive files (.olm) to individual email files (.eml) for easier processing by AI tools.
 
-## Key Files
-- `olm_to_eml_converter.py` - Main conversion script
-- `README.md` - User documentation and usage instructions
+## Commands
+- **Run the converter**: `python olm_to_eml_converter.py path/to/file.olm output_directory`
+- **Test with sample**: `python olm_to_eml_converter.py ~/Documents/MyEmails.olm ./converted_emails`
 
-## Project Structure
-```
-eml_converter/
-├── olm_to_eml_converter.py    # Main conversion script
-├── README.md                  # Documentation
-└── CLAUDE.md                 # This file
-```
+## Architecture
+This is a single-file Python script with no external dependencies. The main architecture consists of:
 
-## Technical Details
-- **Language**: Python 3.6+
-- **Dependencies**: None (uses only standard library)
-- **Input**: .olm files (Outlook for Mac archives)
-- **Output**: Individual .eml files
+- **OLMToEMLConverter class**: Core conversion logic that treats OLM files as ZIP archives
+- **Two-stage processing**: First extracts the ZIP contents, then processes message files
+- **Dual format support**: Handles both XML and binary message formats (.olk15Message, .olk14Message)
+- **Standard library only**: Uses zipfile, xml.etree.ElementTree, email, and pathlib
 
-## Key Components
+## Key Technical Details
+- **Input**: .olm files (Outlook for Mac archives, actually ZIP files)
+- **Output**: Individual .eml files with standard email headers
+- **Python version**: 3.6+
+- **Dependencies**: None (standard library only)
 
-### OLMToEMLConverter Class
-Main class that handles the conversion process:
-- Extracts OLM files (ZIP archives)
-- Processes message files (.olk15Message, .olk14Message)
-- Converts to standard EML format
-- Handles both XML and binary message formats
-
-### Core Methods
+## Core Methods
 - `convert()` - Main conversion orchestrator
-- `_extract_olm()` - Extracts OLM ZIP contents
-- `_process_messages()` - Finds and processes message files
-- `_convert_message_to_eml()` - Converts individual messages
-- `_extract_email_from_xml()` - Extracts from XML format
-- `_extract_email_from_binary()` - Extracts from binary format
-
-## Usage Pattern
-```bash
-python olm_to_eml_converter.py input.olm output_directory
-```
-
-## Common Tasks
-- **Testing**: Run with sample OLM files
-- **Debugging**: Check extraction and conversion processes
-- **Enhancement**: Add support for additional message formats
-- **Documentation**: Update README with new features
+- `_extract_olm()` - Extracts OLM ZIP contents to temp directory
+- `_process_messages()` - Finds and processes .olk15Message/.olk14Message files
+- `_convert_message_to_eml()` - Converts individual messages to EML format
+- `_extract_email_from_xml()` - Handles XML format messages
+- `_extract_email_from_binary()` - Handles binary format messages
 
 ## Known Limitations
 - OLM format is proprietary and complex
 - Some message formats may not be fully supported
 - Large files may require significant processing time
 - Character encoding issues with special characters
-
-## Future Enhancements
-- Support for more message formats
-- Better error handling and logging
-- Progress indicators for large files
-- Batch processing capabilities
-- Integration with email analysis tools
-
-## Testing Notes
-- Requires actual OLM files for testing
-- Test with various Outlook for Mac versions
-- Verify EML output compatibility with email clients
-- Check handling of attachments and complex formatting
