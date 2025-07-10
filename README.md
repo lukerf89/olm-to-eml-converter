@@ -1,6 +1,6 @@
 # OLM to EML Converter
 
-A Python script to convert Outlook for Mac (.olm) archive files to individual .eml files for easy reading by AI tools like Notion AI.
+Convert Outlook for Mac (.olm) archive files to individual .eml files for AI analysis
 
 ## Features
 
