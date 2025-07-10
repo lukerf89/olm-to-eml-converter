@@ -51,24 +51,35 @@ class OLMToEMLConverter:
     
     def _process_messages(self, temp_path):
         """Process extracted message files"""
-        # Look for message files in the Local directory
-        local_dir = temp_path / "Local"
-        if not local_dir.exists():
-            print("No Local directory found in OLM file")
-            return
-        
         message_count = 0
         
-        # Find all message files (usually have .olk15Message extension)
-        for root, dirs, files in os.walk(local_dir):
-            for file in files:
-                if file.endswith('.olk15Message') or file.endswith('.olk14Message'):
-                    message_path = Path(root) / file
-                    try:
-                        self._convert_message_to_eml(message_path, message_count)
-                        message_count += 1
-                    except Exception as e:
-                        print(f"Error processing {message_path}: {e}")
+        # Look for message files in both Local and Accounts directories
+        search_dirs = []
+        local_dir = temp_path / "Local"
+        accounts_dir = temp_path / "Accounts"
+        
+        if local_dir.exists():
+            search_dirs.append(local_dir)
+        if accounts_dir.exists():
+            search_dirs.append(accounts_dir)
+        
+        if not search_dirs:
+            print("No Local or Accounts directory found in OLM file")
+            return
+        
+        # Find all message files
+        for search_dir in search_dirs:
+            for root, dirs, files in os.walk(search_dir):
+                for file in files:
+                    if (file.endswith('.olk15Message') or 
+                        file.endswith('.olk14Message') or 
+                        file.startswith('message_') and file.endswith('.xml')):
+                        message_path = Path(root) / file
+                        try:
+                            self._convert_message_to_eml(message_path, message_count)
+                            message_count += 1
+                        except Exception as e:
+                            print(f"Error processing {message_path}: {e}")
         
         print(f"Processed {message_count} messages")
     
