@@ -3,22 +3,31 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is a three-part email processing utility: converts Outlook for Mac archive files (.olm) to individual email files (.eml), then converts those to CSV database format, and finally chunks the CSV into monthly files for easier AI analysis.
+This is a multi-part email processing utility suite:
+1. Converts Outlook for Mac archive files (.olm) to individual email files (.eml)
+2. Converts EML files to CSV database format for analysis
+3. Chunks large CSV files into monthly files for easier processing
+4. Processes invoice emails for AI classification training data
 
 ## Commands
 - **Convert OLM to EML**: `python3 olm_to_eml_converter.py path/to/file.olm output_directory`
 - **Convert EML to CSV**: `python3 eml_to_csv_converter.py eml_directory output.csv`
 - **Chunk CSV by month**: `python3 csv_chunker.py input.csv output_directory [--prefix emails]`
+- **Process invoice emails**: `python3 invoice_email_processor.py eml_directory output_directory [--stats]`
 - **Full workflow example**: 
   ```bash
   python3 olm_to_eml_converter.py "~/Documents/EmailArchive.olm" ./converted_emails
   python3 eml_to_csv_converter.py ./converted_emails ./emails_database.csv
   python3 csv_chunker.py ./emails_database.csv ./monthly_emails
   ```
+- **Invoice processing example**:
+  ```bash
+  python3 invoice_email_processor.py ./invoice_emails ./output --stats
+  ```
 - **Check script help**: Each script supports `--help` flag for detailed usage information
 
 ## Architecture
-Three complementary Python scripts with no external dependencies:
+Four complementary Python scripts with no external dependencies:
 
 ### OLM to EML Converter
 - **OLMToEMLConverter class**: Treats OLM files as ZIP archives
@@ -40,6 +49,14 @@ Three complementary Python scripts with no external dependencies:
 - **Flexible naming**: Configurable filename prefix (default: emails_YYYY_MM.csv)
 - **Import-friendly**: Creates manageable file sizes for Notion AI processing
 - **Summary reporting**: Shows email counts per month and files created
+
+### Invoice Email Processor
+- **InvoiceEmailProcessor class**: Classifies and sanitizes invoice emails for AI training
+- **Email classification**: INVOICE, SHIPPING, PURCHASE_ORDER, OTHER categories
+- **Pattern matching**: Keywords, subject patterns, attachment patterns
+- **Data sanitization**: Replaces sensitive info (numbers, dates, amounts) with XXX patterns
+- **Vendor extraction**: Identifies vendor names and communication patterns
+- **Dual CSV output**: invoice_classification_data.csv and vendor_patterns.csv
 
 ## Key Technical Details
 - **Input**: .olm files (Outlook for Mac archives) → .eml files → .csv database → monthly .csv files
@@ -72,6 +89,14 @@ Three complementary Python scripts with no external dependencies:
 - `_write_monthly_csv()` - Creates individual CSV files for each month
 - `_print_summary()` - Displays breakdown of emails per month
 
+### Invoice Processor
+- `process_all_emails()` - Main processing orchestrator
+- `classify_email()` - Categorizes emails using pattern matching
+- `sanitize_email_data()` - Protects sensitive information
+- `extract_vendor_name()` - Identifies vendor from email metadata
+- `generate_classification_csv()` - Creates training data CSV
+- `generate_vendor_patterns_csv()` - Creates vendor patterns CSV
+
 ## CSV Output Structure (16 columns)
 1. **subject** - Clean subject without prefixes
 2. **subject_prefix** - RE, FWD, etc. 
@@ -85,6 +110,22 @@ Three complementary Python scripts with no external dependencies:
 10. **thread_id** - Groups related messages
 11. **message_id/in_reply_to/references** - Threading metadata
 12. **filename** - Original EML filename
+
+## Invoice Processor Output Structure
+
+### File 1: invoice_classification_data.csv (5 columns)
+1. **Email_Type** - Classification category (INVOICE/SHIPPING/PURCHASE_ORDER/OTHER)
+2. **From** - Sanitized sender domain (@domain.com format)
+3. **Subject** - Sanitized subject line (numbers replaced with XXX)
+4. **Attachments** - Sanitized attachment names or "none"
+5. **Body_Keywords** - Extracted relevant keywords for classification
+
+### File 2: vendor_patterns.csv (5 columns)
+1. **Vendor_Name** - Extracted vendor name
+2. **Email_Domain** - Sender domain
+3. **Subject_Pattern** - Most common subject format for vendor
+4. **Attachment_Pattern** - Most common attachment naming pattern
+5. **Email_Count** - Number of emails from this vendor
 
 ## Known Limitations
 - OLM format is proprietary and complex
